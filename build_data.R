@@ -2,16 +2,34 @@ rm(list = ls())
 
 library(tidyverse)
 
-data <- read_csv("parcial.csv")
+data <- read_csv("banco.csv")
 
 glimpse(data)
 
 data <- data %>% 
-  select(-NR_SECAO) %>% 
-  distinct() %>% 
-  mutate(Dados_Originais = str_c("Dados Originais:", NM_LOCALIDADE, ",", NM_LOCVOT, DS_ENDERECO, sep = " "),
-         Dados_Obtidos   = str_c("Dados Obtidos:",locality, street_name, street_number, sep = " "))
+  select(-NR_SECAO, -X1) %>% 
+  distinct() 
 
-write_rds(data, "parcial.rds")
+data <- modify_if(data, is.character, str_replace_na)
+
+data <- data %>% 
+  mutate(Dados_Originais = str_c("<strong>Dados Originais:</strong> ",
+                                 "<em>", NM_LOCALIDADE, "</em>", ",",
+                                 NM_LOCVOT, DS_ENDERECO, sep = " "),
+         Dados_Originais = str_to_title(Dados_Originais),
+         Dados_Obtidos   = str_c("<strong>Dados Obtidos:</strong> ", "<em>",
+                                 locality, "</em>", street_name,
+                                 street_number, sep = " "),
+         Qualidade       = str_c("<strong>Dispersão:</strong> ", round(dispersion, 4), "<br/>",
+                                 "<strong>Nº de Clusters:</strong> " ,clusters_count, "<br/>",
+                                 "<strong>Nº de Provedores:</strong>", providers_count, "<br/>",
+                                 "<strong>Provedor:</strong> ", provider),
+         popup           = str_c(Dados_Originais, "<br/>",
+                                 Dados_Obtidos, "<br/>",
+                                 Qualidade, "<br/>"),
+         color           = case_when(provider == "arcgis_online" ~ "green",
+                                     provider == "google_maps"   ~ "blue",
+                                     provider == "here_geocoder" ~ "red"))
 
 
+write_rds(data, "banco.rds")
