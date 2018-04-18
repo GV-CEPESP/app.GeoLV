@@ -21,13 +21,19 @@ data <- data %>%
   select(-NR_SECAO, -X1) %>% 
   distinct() 
 
+n_encontrados<- data %>% 
+  filter(is.na(locality))
+
 dados1 <-nrow(data_bruta)
 dados2 <-nrow(data)
+dados3 <-nrow(n_encontrados)
 ```
 
 A partir da base colocada no GeoLV, temos a seguinte quantidade de observações: `r dados1`
 
 A seguir, limpamos os endereços repetidos e ficamos com os locais de votação únicos `r dados2`
+
+O número de locais não encontrados foram `r dados3`
 
 # Passo 2: Criação do Banco para Geolocalização
 
