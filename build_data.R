@@ -12,6 +12,9 @@ data <- data %>%
 
 data <- modify_if(data, is.character, str_replace_na)
 
+casos <- data %>% 
+  filter(is.na(latitude))
+
 data <- data %>% 
   mutate(Dados_Originais = str_c("<strong>Dados Originais:</strong> ",
                                  "<em>", NM_LOCALIDADE, "</em>", ",",
@@ -33,3 +36,4 @@ data <- data %>%
 
 
 write_rds(data, "banco.rds")
+write.csv(casos, "casos.csv")
