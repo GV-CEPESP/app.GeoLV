@@ -2,4 +2,4 @@
 
 Shiny app para teste dos resultados do GeoLV
 
-Link:  https://rccsilva.shinyapps.io/GeoLV_Teste/
+Link: https://rccsilva.shinyapps.io/geolv/
