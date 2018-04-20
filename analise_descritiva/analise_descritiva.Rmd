@@ -1,0 +1,147 @@
+---
+title: "Análise Descritiva"
+output:
+  html_document:
+    df_print: paged
+  pdf_document:
+    latex_engine: lualatex
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      fig.align = "center",
+                      fig.width = 8.0,
+                      fig.height = 4.0)
+```
+
+#1. Análise Descritiva - GeoLV
+
+##1.1. Carregando o Banco de Dados
+
+```{r, message=F}
+library(tidyverse)
+library(knitr)
+library(plotly)
+data <- read_rds("banco.rds")
+```
+
+##1.2. Análise Univariada das Variáveis
+
+```{r}
+data %>% 
+  ggplot(mapping = aes(x = dispersion)) +
+  theme_minimal() +
+  geom_histogram()
+```
+
+A distribuição da variável _dispersion_ é bastante concentrada do lado esquerdo do gráfico. Algumas poucas exceções de valores mais altos. Talvez seja interessante considerar alguma transformação dessa variável a fim de melhor avaliar a qualidade dos resultados.
+
+Na tabela a seguir, temos os valores para algumas estatísticas de _dispersion_. 
+
+```{r}
+data %>% 
+  summarise(`1º Quartil` = round(quantile(dispersion, 0.25, na.rm = T), 6),
+            `Mediana`    = round(quantile(dispersion, 0.50, na.rm = T), 6),
+            `3º Quartil` = round(quantile(dispersion, 0.75, na.rm = T), 6),
+            `Média`      = round(mean(dispersion, na.rm = T), 6),
+            `Desvio Padrão` = sd(dispersion, na.rm = T)) %>% 
+  kable(caption = "Estatística descritiva da dispersão")
+```
+
+```{r}
+data %>% 
+  ggplot(mapping = aes(x = clusters_count)) +
+  geom_bar() +
+  scale_x_continuous(breaks = seq(1, 6, by = 1)) +
+  scale_y_continuous(breaks = seq(0,700, by = 100))
+```
+
+Das 1040 observações, um pouco mais de 600 ($\approx 60\%$) obtiveram apenas um _cluster_ como resultado da pesquisa.
+
+```{r}
+data %>% 
+  ggplot(mapping = aes(x = providers_count)) +
+  geom_bar() +
+  theme_minimal() +
+  scale_x_continuous(breaks = seq(1, 3, by = 1)) +
+  scale_y_continuous(breaks = seq(0,400, by = 50))
+```
+
+Quanto à quantidade de provedores (_providers\_count_), 
+
+Por fim, talvez seja interessante olhar a relação entre as três variáveis já que uma observação com boa qualidade seria aquela com baixo valor de dispersão, poucos _clusters_ e alta quantidade de provedores. A princípio, espera-se que exista uma correlação entre esses resultados. 
+
+```{r}
+data %>% 
+  ggplot(mapping = aes(x = log(dispersion), y = clusters_count, color = as.factor(providers_count))) +
+  geom_point(alpha = 0.2) +
+  geom_jitter() +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+Decidi utilizar o _log_ de _dispersion_ a fim de evitar que os pontos ficassem muito concentrados em torno do 0. Além disso, adicionei um pouco de variação aleatória nos pontos com objetivo de não deixá-los sobrepostos uns aos outros.
+
+##1.3. Distribuição dos Indicadores por Município
+
+```{r}
+data %>% 
+  ggplot(mapping = aes(x = NM_LOCALIDADE, y = dispersion)) +
+  geom_boxplot() + 
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 50, hjust = 1))
+```
+
+Nessa primeira imagem, temos os boxplots para a dispersão em cada cidade da região metropolitana de Curitiba. Observamos a presença de apenas duas observações com valor de dispersão acima do padrão. Uma na cidade de Pinhais e outra na cidade de São José dos Pinhais. De resto, apenas chama atenção a cidade de Rio Grande do Sul, onde a distribuição da variável foi mais dispersa do que nas outras cidades.
+
+```{r, fig.height=5.0, fig.width=8.0}
+data %>% 
+  ggplot(mapping = aes(x = NM_LOCALIDADE, y = dispersion)) +
+  geom_boxplot() + 
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 50, hjust = 1)) +
+  ylim(c(0, 0.2))
+```
+
+A fim de melhor visualizar a difereça entre as cidades, neste imagem limitei o gráfico para o intervalo de dispersão (0, 0.2). Aparentemente temos dois padrões de distribuição. De um lado, cidades que ficaram bem próximas do 0 (ex. Curitiba, Campina Grande do Sul, Lapa) e de cidades que com um intervalo um pouco maior (Agudos do Sul, etc).
+
+```{r, fig.height=7.0, fig.width= 9.0}
+data %>% 
+  group_by(NM_LOCALIDADE) %>% 
+  summarise(MEDIA = mean(clusters_count, na.rm = T)) %>% 
+  mutate(DESVIO_MEDIA = (((MEDIA - mean(MEDIA))/mean(MEDIA)) * 100)) %>% 
+  ggplot(mapping = aes(x = NM_LOCALIDADE, y = DESVIO_MEDIA)) +
+  geom_segment(aes(xend = NM_LOCALIDADE, yend = 0, color = DESVIO_MEDIA > 0), alpha = 0.8, size = 2) +
+  geom_point(size = 2) +
+  geom_hline(yintercept = 0) +
+  coord_flip() +
+  scale_color_discrete(labels = c("Negativo", "Positivo")) +
+  theme_minimal() +
+  theme(legend.position = "bottom") +
+  labs(y = "Desvio Percentual em Relação à Média (%)",
+       x = "Municípios",
+       color = "Direção do Desvio",
+       title = "Diferença de Quantidade de Clusters")
+```
+
+Ao observar a diferença de média de provedores 
+
+```{r, fig.height=7.0, fig.width= 9.0}
+data %>% 
+  group_by(NM_LOCALIDADE) %>% 
+  summarise(MEDIA = mean(providers_count, na.rm = T)) %>% 
+  mutate(DESVIO_MEDIA = (((MEDIA - mean(MEDIA))/mean(MEDIA)) * 100)) %>% 
+  ggplot(mapping = aes(x = NM_LOCALIDADE, y = DESVIO_MEDIA)) +
+  geom_segment(aes(xend = NM_LOCALIDADE, yend = 0, color = DESVIO_MEDIA > 0), alpha = 0.8, size = 2) +
+  geom_point(size = 2) +
+  geom_hline(yintercept = 0) +
+  coord_flip() +
+  scale_color_discrete(labels = c("Negativo", "Positivo")) +
+  theme_minimal() +
+  theme(legend.position = "bottom") +
+  labs(y = "Desvio Percentual em Relação à Média (%)",
+       x = "Municípios",
+       color = "Direção do Desvio",
+       title = "Diferença de Quantidade de Provedores")
+```
+
