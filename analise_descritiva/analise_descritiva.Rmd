@@ -21,8 +21,9 @@ knitr::opts_chunk$set(echo = TRUE,
 ```{r, message=F}
 library(tidyverse)
 library(knitr)
-library(plotly)
-data <- read_rds("banco.rds")
+library(ggthemes)
+library(leaflet)
+data <- read_rds("../banco.rds")
 ```
 
 ##1.2. Análise Univariada das Variáveis
@@ -143,5 +144,73 @@ data %>%
        x = "Municípios",
        color = "Direção do Desvio",
        title = "Diferença de Quantidade de Provedores")
+```
+
+##1.4. Mapas
+
+```{r}
+pal <- colorNumeric(
+  palette = colorRampPalette(c('red', 'green'))(length(data$dispersion)), 
+  domain = data$dispersion)
+
+data %>% 
+  leaflet() %>%
+  addTiles() %>%
+  addCircleMarkers(
+    lng =  ~ longitude,
+    lat =  ~ latitude,
+    radius = ~ dispersion * 100,
+    color =  ~ pal(dispersion),
+    popup = ~ stringr::str_c(Dados_Originais, "<br/>",
+                             Dados_Obtidos, "<br/>",
+                             Qualidade, "<br/>")
+  ) %>% 
+  addLegend(pal = pal,
+            values = ~dispersion,
+            position = "bottomright")
+```
+
+```{r}
+pal <- colorNumeric(
+  palette = colorRampPalette(c('red', 'green'))(length(data$clusters_count)), 
+  domain = data$clusters_count)
+
+data %>% 
+  leaflet() %>%
+  addTiles() %>%
+  addCircleMarkers(
+    lng =  ~ longitude,
+    lat =  ~ latitude,
+    radius = ~ clusters_count,
+    color =  ~ pal(clusters_count),
+    popup = ~stringr::str_c(Dados_Originais, "<br/>",
+                                          Dados_Obtidos, "<br/>",
+                                          Qualidade, "<br/>")
+  ) %>% 
+  addLegend(pal = pal,
+            values = ~clusters_count,
+            position = "bottomright")
+```
+
+```{r}
+pal <- colorNumeric(
+  palette = colorRampPalette(c('red', 'green'))(length(data$providers_count)), 
+  domain = data$providers_count)
+
+data %>% 
+  leaflet() %>%
+  addTiles() %>%
+  addCircleMarkers(
+    lng =  ~ longitude,
+    lat =  ~ latitude,
+    radius = ~ providers_count,
+    color =  ~ pal(providers_count),
+    popup = ~stringr::str_c(Dados_Originais, "<br/>",
+                                          Dados_Obtidos, "<br/>",
+                                          Qualidade, "<br/>")
+  ) %>% 
+  addLegend(pal = pal,
+            values = ~providers_count,
+            position = "bottomright")
 ```
 
