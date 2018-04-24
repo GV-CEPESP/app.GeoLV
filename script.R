@@ -13,10 +13,13 @@ sample <- sample %>%
   mutate(LOCAL_VOTACAO = str_c(NM_LOCVOT),
          FORNECIDOS    = str_c(NM_LOCALIDADE, " - ", DS_ENDERECO,". CEP: ", NR_CEP),
          OBTIDOS       = str_c(locality, " - ", street_name, ", ", street_number, ". CEP: ", postal_code),
-         POP_UP        = str_c("<strong> Número da Observação</strong>: ", X1, "</br>",
+         LON           = longitude,
+         LAT           = latitude,
+         POP_UP        = str_c("<strong>Número da Observação</strong>: ", X1, "</br>",
                                "<strong>Local de Votavação</strong>: ", LOCAL_VOTACAO, "</br>",
                                "<strong>Dados Foerncedidos</strong>: ", FORNECIDOS, "</br>",
-                               "<strong>Dados Obtidos</strong>: ", OBTIDOS))
+                               "<strong>Dados Obtidos</strong>: ", OBTIDOS, "</br>",
+                               "<strong>Coordenadas</strong>: LAT ", LAT, " LON ", LON))
 
 leaflet(sample) %>% 
   addTiles() %>% 
