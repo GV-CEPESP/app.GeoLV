@@ -1,13 +1,32 @@
 rm(list = ls())
 
 library(tidyverse)
+library(geosphere)
+library(foreign)
 
-data_df <- read_rds("banco.rds")
+data_df <- read_csv("banco.csv")
 
-sample <- data_df %>% 
-  mutate(QUALIDADE_NEG =  data_df$dispersion * clusters_count * (4 - providers_count)) %>% 
-  filter(!is.na(QUALIDADE_NEG)) %>% 
-  sample_n(100, weight = QUALIDADE_NEG)
+data_compare_df <- read.dbf("Ctba_LocaisVotacao.dbf")
+
+data_compare_df <- data_compare_df %>% 
+  mutate(NR_ZONA   = as.numeric(COD_ZONA),
+         NR_LOCVOT = COD_TRE) %>%
+  select(NR_ZONA, NR_LOCVOT, COD_TRE, XCOORD, YCOORD)
+
+data_df <- data_df %>% 
+  mutate(NR_LOCVOT = as.character(NR_LOCVOT))
+
+data_df <- data_df %>% 
+  left_join(data_compare_df)
+
+data_df$dist <- NA
+for(i in 1:nrow(data_df)){
+  data_df$dist[[i]] <- distm(c(data_df$longitude[[i]], data_df$longitude[[i]]), c(data_df$XCOORD[[i]], data_df$YCOORD[[i]]))
+}
+
+data_df %>% 
+  ggplot(mapping = aes(x = dist)) +
+  geom_histogram()
 
 sample <- sample %>% 
   mutate(LOCAL_VOTACAO = str_c(NM_LOCVOT),

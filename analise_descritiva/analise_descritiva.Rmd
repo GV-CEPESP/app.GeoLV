@@ -10,6 +10,7 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE,
                       warning = FALSE,
+                      message = FALSE,
                       fig.align = "center",
                       fig.width = 8.0,
                       fig.height = 4.0)
@@ -24,7 +25,7 @@ library(tidyverse)
 library(knitr)
 library(ggthemes)
 library(leaflet)
-data <- read_rds("../banco.rds")
+data <- read_csv("../banco.csv")
 ```
 
 ##1.2. Análise Univariada das Variáveis
@@ -33,7 +34,10 @@ data <- read_rds("../banco.rds")
 data %>% 
   ggplot(mapping = aes(x = dispersion)) +
   theme_minimal() +
-  geom_histogram()
+  geom_histogram() +
+  labs(x = "Dipsersão",
+       y = "Quantidade",
+       title = "Histograma de Dispersão")
 ```
 
 A distribuição da variável _dispersion_ é bastante concentrada do lado esquerdo do gráfico. Algumas poucas exceções de valores mais altos. Talvez seja interessante considerar alguma transformação dessa variável a fim de melhor avaliar a qualidade dos resultados.
@@ -55,7 +59,11 @@ data %>%
   ggplot(mapping = aes(x = clusters_count)) +
   geom_bar() +
   scale_x_continuous(breaks = seq(1, 6, by = 1)) +
-  scale_y_continuous(breaks = seq(0,700, by = 100))
+  scale_y_continuous(breaks = seq(0,700, by = 100)) +
+  theme_minimal() +
+  labs(x = "Contagem Cluster",
+       y = "Quantidade",
+       title = "Contagems de Clusters: Gráfico de Barras")
 ```
 
 Das 1040 observações, um pouco mais de 600 ($\approx 60\%$) obtiveram apenas um _cluster_ como resultado da pesquisa.
@@ -66,23 +74,103 @@ data %>%
   geom_bar() +
   theme_minimal() +
   scale_x_continuous(breaks = seq(1, 3, by = 1)) +
-  scale_y_continuous(breaks = seq(0,400, by = 50))
+  scale_y_continuous(breaks = seq(0,400, by = 50)) +
+  labs(x = "Contagem de Provedores",
+       y = "Quantidade",
+       title = "Contagem de Provedores: Gráfico de Barras")
 ```
 
 Quanto à quantidade de provedores (_providers\_count_), a distribuição parece mais homogênea. Praticamente a quantidade de observações com 2 e 3 provedores foi igual. Apenas 200 ($\approx 20\%$) das observações obtiveram um único provedor.
 
-Por fim, talvez seja interessante olhar a relação entre as três variáveis já que uma observação com boa qualidade seria aquela com baixo valor de dispersão, poucos _clusters_ e alta quantidade de provedores. A princípio, espera-se que exista uma correlação entre esses resultados. 
+```{r}
+data %>% 
+  ggplot(mapping = aes(x = levenshtein_match_street_name)) +
+  geom_histogram() +
+  theme_minimal() +
+  labs(x = "Medida Levenshtein",
+       y = "Quantidade",
+       title = "Levenshtein: Histograma")
+```
+
+```{r}
+table_leve <- data %>% 
+  summarise(`Mínimo`     = min(levenshtein_match_street_name, na.rm = T),
+            `1º Quartil` = quantile(levenshtein_match_street_name, 0.25, na.rm = T),
+            `Mediana`    = quantile(levenshtein_match_street_name, 0.50, na.rm = T),
+            `2º Quartil` = quantile(levenshtein_match_street_name, 0.75, na.rm = T),
+            `Máximo`     = max(levenshtein_match_street_name, na.rm = T),
+            `Média`      = mean(levenshtein_match_street_name, na.rm = T))
+
+table_leve %>% 
+  kable(caption = "Estatísticas Descritivas: Medida Levenshtein")
+```
+
+```{r}
+summary(data$dispersion)
+summary(data$dispersion[data$dispersion != 0])
+
+data <- data %>% 
+  mutate(cat_dispersion  = case_when(dispersion != 0 & dispersion < 0.00005 ~ "Bom",
+                                     dispersion < 0.00577 & dispersion >= 0.00005 ~ "Médio",
+                                     dispersion == 0 | dispersion >= 0.00577 ~ "Ruim"),
+         cat_clusters    = case_when(clusters_count == 1 ~ "Bom",
+                                     clusters_count > 1  ~ "Ruim"),
+         cat_providers   = case_when(providers_count == 1 ~ "Ruim",
+                                     providers_count == 2 ~ "Médio",
+                                     providers_count == 3 ~ "Bom"),
+         cat_levenshtein = case_when(levenshtein_match_street_name >= 0.6 ~ "Bom",
+                                     levenshtein_match_street_name >= 0.4 & levenshtein_match_street_name < 0.6 ~ "Médio",
+                                     levenshtein_match_street_name < 0.4 ~ "Ruim"))
+```
 
 ```{r}
 data %>% 
-  ggplot(mapping = aes(x = log(dispersion), y = clusters_count, color = as.factor(providers_count))) +
-  geom_point(alpha = 0.2) +
-  geom_jitter() +
-  theme_minimal() +
-  theme(legend.position = "bottom")
+  gather(cat_dispersion:cat_levenshtein, key = "resposta", value = "valor") %>% 
+  group_by(resposta) %>% 
+  count(valor) %>% 
+  mutate(TOTAL = sum(n)) %>% 
+  spread(resposta, n) 
+  
 ```
 
-Decidi utilizar o _log_ de _dispersion_ a fim de evitar que os pontos ficassem muito concentrados em torno do 0. Além disso, adicionei um pouco de variação aleatória nos pontos com objetivo de não deixá-los sobrepostos uns aos outros.
+
+```{r}
+data <- data %>% 
+  mutate(QUALIDADE = case_when(cat_dispersion == "Bom"  & cat_clusters == "Bom" & cat_providers == "Bom" & cat_levenshtein == "Bom"      ~ "A",
+                               cat_dispersion == "Ruim" | cat_clusters == "Ruim" | cat_providers == "Ruim" | cat_levenshtein == "Ruim"  ~ "C",
+                               is.na(cat_dispersion)                                                                                    ~ NA_character_,
+                               T                                                                                                        ~ "B"))
+```
+
+```{r}
+g1 <- data %>% 
+  ggplot(mapping = aes(x = dispersion, y = levenshtein_match_street_name, color = clusters_count, frame = providers_count)) +
+  geom_point(alpha = 0.6)
+
+g1 %>% 
+  plotly::ggplotly()
+```
+
+
+
+```{r}
+data %>%
+  filter(!is.na(cat_dispersion)) %>% 
+  count(cat_dispersion, cat_clusters) %>% 
+  ggplot(mapping = aes(x = cat_dispersion, y = cat_clusters, fill = n)) +
+  geom_tile()
+```
+
+
+```{r}
+data %>% 
+  ggplot(mapping = aes(x = levenshtein_match_street_name, y = log(dispersion), color = cat_levenshtein)) +
+  geom_point()
+```
+
+
+
+
 
 ##1.3. Distribuição dos Indicadores por Município
 
@@ -189,7 +277,7 @@ map1 <- data %>%
   addCircleMarkers(
     lng =  ~ longitude,
     lat =  ~ latitude,
-    radius = ~ dispersion * 100,
+    radius = ~ dispersion,
     color =  ~ pal(dispersion),
     popup = ~ stringr::str_c(Dados_Originais, "<br/>",
                              Dados_Obtidos, "<br/>",
