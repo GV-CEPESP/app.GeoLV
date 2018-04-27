@@ -1,16 +1,19 @@
 library(magrittr)
+library(shiny)
+library(leaflet)
 
 data <- readr::read_rds("amostra.rds")
 
 # Define UI for application that draws a histogram
 
-ui <- shiny::bootstrapPage(
-  shiny::tags$style(type = "text/css", "html, body {width:100%;height:100%}"),
-  leaflet::leafletOutput("map", width = "100%", height = "100%"),
-  shiny::absolutePanel(top = 10, right = 10,
-                selectInput("select", label = "Selecionar Observações", choices = sort(data$X1), multiple = T)
-                )
-  )
+ui <- bootstrapPage(
+  tags$style(type = "text/css", "html, body {width:100%;height:100%}"),
+  leafletOutput("map", width = "100%", height = "100%"),
+  absolutePanel(top = 10, right = 10,
+               selectInput("select", "Selecionar Observações",
+                            data$X1
+                ))
+)
 
 # Define server logic required to draw a histogram
 server <- function(input, output, session){

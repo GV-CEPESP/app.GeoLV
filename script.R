@@ -6,6 +6,10 @@ library(foreign)
 
 data_df <- read_csv("banco.csv")
 
+data_df <- modify_if(data_df, is.character, str_replace_na)
+
+data_df$postal_code <- ifelse(is.na(data_df$postal_code), "NA", data_df$postal_code)
+
 data_df <- data_df %>% 
   mutate(LOCAL_VOTACAO = str_c(NM_LOCVOT),
          FORNECIDOS    = str_c(NM_LOCALIDADE, " - ", DS_ENDERECO,". CEP: ", NR_CEP),
@@ -19,21 +23,17 @@ data_df <- data_df %>%
                                "<strong>Coordenadas</strong>: LAT ", LAT, " LON ", LON))
 
 pre_sample_min <- data_df %>% 
+  filter(!is.na(longitude)) %>% 
   filter(dispersion > quantile(dispersion, 0.75, na.rm = T)) %>% 
   sample_n(30)
 
 pre_sample_max <- data_df %>% 
+  filter(!is.na(longitude)) %>% 
   filter(dispersion < quantile(dispersion, 0.25, na.rm = T)) %>% 
   sample_n(30)
 
 sample_df <- pre_sample_min %>% 
   bind_rows(pre_sample_max)
-
-leaflet(sample_df) %>% 
-  addTiles() %>% 
-  addMarkers(lat   = ~latitude,
-             lng   = ~longitude,
-             popup = ~POP_UP)
 
 # readr::write_rds(sample_df, "amostra.rds") #Banco para o Shiny
 # 
