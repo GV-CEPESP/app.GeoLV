@@ -2,13 +2,14 @@ library(magrittr)
 library(shiny)
 library(leaflet)
 
-data <- readr::read_rds("amostra.rds")
+data <- readr::read_rds("amostra.rds") %>% 
+  dplyr::arrange(X1)
 
 # Define UI for application that draws a histogram
 
-ui <- bootstrapPage(
+ui <- fluidPage(
   tags$style(type = "text/css", "html, body {width:100%;height:100%}"),
-  leafletOutput("map", width = "100%", height = "100%"),
+  leafletOutput("map", width = "70%", height = "600"),
   absolutePanel(top = 10, right = 10,
                selectInput("select", "Selecionar Observações",
                             data$X1
@@ -18,18 +19,25 @@ ui <- bootstrapPage(
 # Define server logic required to draw a histogram
 server <- function(input, output, session){
   
-  geolv <- shiny::reactive({
+  select <- shiny::reactive({
     data %>% 
       dplyr::filter(X1 %in% input$select)
     })
   
    output$map <- leaflet::renderLeaflet({
-     leaflet::leaflet(geolv()) %>%
+     leaflet::leaflet(data) %>%
        leaflet::addTiles() %>% 
-       leaflet::addMarkers(lng   = ~longitude,
-                           lat   = ~latitude,
-                           popup = ~POP_UP)
+       leaflet::addAwesomeMarkers(lng   = ~longitude,
+                                  lat   = ~latitude,
+                                  popup = ~POP_UP)
      })
+   
+   observe({
+     leafletProxy("map") %>% 
+       setView(lng = select()$longitude,
+               lat = select()$latitude,
+               zoom = 30)
+   })
 }
 
 # Run the application 
