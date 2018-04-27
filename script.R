@@ -6,29 +6,7 @@ library(foreign)
 
 data_df <- read_csv("banco.csv")
 
-data_compare_df <- read.dbf("Ctba_LocaisVotacao.dbf")
-
-data_compare_df <- data_compare_df %>% 
-  mutate(NR_ZONA   = as.numeric(COD_ZONA),
-         NR_LOCVOT = COD_TRE) %>%
-  select(NR_ZONA, NR_LOCVOT, COD_TRE, XCOORD, YCOORD)
-
 data_df <- data_df %>% 
-  mutate(NR_LOCVOT = as.character(NR_LOCVOT))
-
-data_df <- data_df %>% 
-  left_join(data_compare_df)
-
-data_df$dist <- NA
-for(i in 1:nrow(data_df)){
-  data_df$dist[[i]] <- distm(c(data_df$longitude[[i]], data_df$longitude[[i]]), c(data_df$XCOORD[[i]], data_df$YCOORD[[i]]))
-}
-
-data_df %>% 
-  ggplot(mapping = aes(x = dist)) +
-  geom_histogram()
-
-sample <- sample %>% 
   mutate(LOCAL_VOTACAO = str_c(NM_LOCVOT),
          FORNECIDOS    = str_c(NM_LOCALIDADE, " - ", DS_ENDERECO,". CEP: ", NR_CEP),
          OBTIDOS       = str_c(locality, " - ", street_name, ", ", street_number, ". CEP: ", postal_code),
@@ -40,15 +18,26 @@ sample <- sample %>%
                                "<strong>Dados Obtidos</strong>: ", OBTIDOS, "</br>",
                                "<strong>Coordenadas</strong>: LAT ", LAT, " LON ", LON))
 
-leaflet(sample) %>% 
+pre_sample_min <- data_df %>% 
+  filter(dispersion > quantile(dispersion, 0.75, na.rm = T)) %>% 
+  sample_n(30)
+
+pre_sample_max <- data_df %>% 
+  filter(dispersion < quantile(dispersion, 0.25, na.rm = T)) %>% 
+  sample_n(30)
+
+sample_df <- pre_sample_min %>% 
+  bind_rows(pre_sample_max)
+
+leaflet(sample_df) %>% 
   addTiles() %>% 
   addMarkers(lat   = ~latitude,
              lng   = ~longitude,
              popup = ~POP_UP)
 
-# write_rds(sample, "amostra.rds") #Banco para o Shiny
+# readr::write_rds(sample_df, "amostra.rds") #Banco para o Shiny
 # 
-# sample %>%
+# sample_df %>%
 #   select(X1, LOCAL_VOTACAO, FORNECIDOS, OBTIDOS) %>%
 #   arrange(X1) %>%
 #   write_csv("amostra.csv") # Banco para o Google Sheets
