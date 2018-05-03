@@ -26,6 +26,7 @@ library(knitr)
 library(ggthemes)
 library(leaflet)
 data <- read_csv("../banco.csv")
+amostra <- read_rds("../amostra.rds")
 ```
 
 ##1.2. Análise Univariada das Variáveis

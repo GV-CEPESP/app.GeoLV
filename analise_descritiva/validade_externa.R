@@ -5,7 +5,6 @@ library(geosphere)
 library(leaflet)
 library(foreign)
 
-
 # 1. Validação Exerna dos Resultados --------------------------------------
 
 data_df <- read_csv("banco.csv")
