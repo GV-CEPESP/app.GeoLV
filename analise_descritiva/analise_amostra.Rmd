@@ -1,0 +1,18 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r setup, echo = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Conclusões
+
+- Observações no centro de cidades tendem a ser mais confiáveis.
+
+- Parece que o maior problema com os endereços de seções localizadas na periferias ou em áreas rurais é a falta de detalhes: número da rua ou apenas a quilometragem.
+
+    + Uma possível solução é fornecer o nome do local de votação ao invés do endereço.
+
+- Tomar cuidado com números de ruas grandes. Se a marcação de mil for um `.`, aparentemente as APIs têm problemas em interpretar o resultado. Por exemplo, ao fornecer Rua Fictícia 123.000 (cento e vinte e três mil), a API entende como 123 (cento e vinte e três).
