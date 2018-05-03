@@ -36,7 +36,7 @@ server <- function(input, output, session){
      leafletProxy("map") %>% 
        setView(lng = select()$longitude,
                lat = select()$latitude,
-               zoom = 30)
+               zoom = 15)
    })
 }
 
