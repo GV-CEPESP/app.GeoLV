@@ -2,7 +2,7 @@ rm(list = ls())
 
 library(tidyverse)
 
-data <- read_csv("banco.csv")
+data <- read_csv("banco_rjcba.csv")
 
 glimpse(data)
 
@@ -35,5 +35,5 @@ data <- data %>%
                                      provider == "here_geocoder" ~ "red"))
 
 
-write_rds(data, "banco.rds")
-write.csv(casos, "casos.csv")
+write_rds(data, "banco_rjcba.rds")
+write.csv(casos, "casos_rjcba.csv")
