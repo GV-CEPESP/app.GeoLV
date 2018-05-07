@@ -1,5 +1,6 @@
 ---
-title: "R Notebook"
+title: "Relatório GEOLV"
+author: "CEPESPData"
 output:
   html_document:
     df_print: paged
@@ -224,7 +225,6 @@ amostra %>%
   theme_minimal()
 ```
 
-
 - Legenda:
 
     + Na mosca: Endereço exatato do local de votação.
@@ -238,6 +238,144 @@ amostra %>%
     + Endereço Diferente. Sem confirmação visual: Endereço obtido não equivale ao fornecido e não foi possível confirmar visualmente o resultado (_Street View_ indisponível ou Local não encontrado).
     
     + Endereço Errado: Endereço fornecido não condiz com o local de votação.
+    
+## 3. Validação Externa
+
+Nesta seção, o objetivo foi averiguar os pontos obtidos em contraste com fontes externas. Dado que a prefeitura de Curitiba possui as zonas de votação geolocalizadas, foi possível averiguar a distâncias entre essas inforçaões da prefeitura e os fornecidos pelo GeoLV nas 414 zonas eleitorais do município. 
+
+```{r}
+rm(list = ls())
+library(tidyverse)
+library(foreign)
+library(geosphere)
+library(knitr)
+
+data_df <- read_csv("../banco.csv")
+
+prova_df <- read.dbf("../Ctba_LocaisVotacao.dbf") %>% 
+  as.tibble()
+
+data_df_f <- data_df %>% 
+  filter(NM_LOCALIDADE == "CURITIBA") %>% 
+  mutate(TIPO = "GEOLV") %>% 
+  mutate(NR_CEP = as.character(NR_CEP))
+
+prova_df <- prova_df %>% 
+  mutate(NR_ZONA   = as.integer(as.character(COD_ZONA)),
+         NR_LOCVOT = as.integer(as.character(COD_TRE)),
+         NM_LOCVOT = NOME_LOCAL,
+         NM_LOCALIDADE = "Curitiba",
+         DS_ENDERECO   = ENDERECO,
+         NR_CEP        = "NA",
+         longitude    = as.numeric(XCOORD),
+         latitude     = as.numeric(YCOORD),
+         TIPO         = "PROVA") %>% 
+  select(NM_LOCVOT, NM_LOCALIDADE, DS_ENDERECO, NR_CEP, NR_ZONA, NR_LOCVOT, longitude, latitude, TIPO)
+
+merged_df <- data_df_f %>% 
+  bind_rows(prova_df)
+
+merged_df <- merged_df %>% 
+  arrange(NR_ZONA, NR_LOCVOT)
+
+merged_df <- merged_df %>% 
+  filter(!(NR_ZONA == 178 & NR_LOCVOT == 1392)) %>% 
+  filter(!(NR_ZONA == 178 & NR_LOCVOT == 1686)) #Exclusão de dados
+
+merged_df$dist <- NA
+
+for(i in (2:nrow(merged_df) - 1)){
+  if(i %% 2 != 0){
+    merged_df$dist[[i]] <- distm(c(merged_df$longitude[[i]], merged_df$latitude[[i]]), c(merged_df$longitude[[i + 1]], merged_df$latitude[[i + 1]]))
+  }
+}
+
+merged_df$dist <- ifelse(is.na(merged_df$dist), lag(merged_df$dist), merged_df$dist)
+```
+
+Em primeiro lugar, temos as distãncias entre os pontos. A princípio, grande parte ficou abaixo dos 100 metros de distância. Ainda assim, agulmas observações obtiveram uma distância relativamente alta, maior do 1000 m de distância.
+
+```{r}
+estat_dist <- merged_df %>% 
+  filter(TIPO == "GEOLV") %>%
+  filter(!is.na(dist)) %>% 
+  .$dist %>% 
+  summary() %>% 
+  unclass()
+
+estat_dist %>% 
+  t() %>% 
+  kable(col.names = c("Mínimo", "1º Quartil", "Mediana", "Média", "3º Quartil", "Máximo"),
+        caption = c("Estatísticas Descritivas da Distância"))
+```
+
+
+```{r}
+merged_df %>% 
+  filter(TIPO == "GEOLV") %>% 
+  ggplot(mapping = aes(x = dist)) +
+  geom_histogram() +
+  theme_minimal() +
+  labs(x = "Distância (m)",
+       y = "Quantidade",
+       title = "Distância entre locais geolocalizados")
+```
+
+Na tabela seguinte, é possível ver quais foram as observações com mais do que 1000 m de distância.
+
+```{r}
+merged_df %>% 
+  filter(dist > 1000) %>% 
+  select(X1, NM_LOCALIDADE, NM_LOCVOT, NR_ZONA, NR_LOCVOT, longitude, latitude, dist) %>% 
+  kable(col.names = c("Nº Obs","Município", "Local de Votação", "Nº Zona", "Nº Local Votação", "Lon", "Lat", "Dist (m)"),
+        caption = "Locais de Votação com Distância maior do que 1000 m")
+```
+
+Agora, um mapa.
+
+```{r}
+library(leaflet)
+
+for(i in seq_along(merged_df$X1)){
+  if(i %% 2 == 0){
+      merged_df$X1[[i]] <- merged_df$X1[[i - 1]]
+  }
+}
+
+merged_df <- merged_df %>% 
+  mutate(LOCAL_VOTACAO = str_c(NM_LOCVOT),
+         FORNECIDOS    = str_c(NM_LOCALIDADE, " - ", DS_ENDERECO,". CEP: ", NR_CEP),
+         OBTIDOS       = str_c(locality, " - ", street_name, ", ", street_number, ". CEP: ", postal_code),
+         OBTIDOS       = str_replace_na(OBTIDOS),
+         LON           = longitude,
+         LAT           = latitude,
+         POP_UP        = str_c("<strong>Tipo de Obsevação</strong>: ", TIPO, "</br>",
+                               "<strong>Número da Observação</strong>: ", X1, "</br>",
+                               "<strong>Local de Votavação</strong>: ", LOCAL_VOTACAO, "</br>",
+                               "<strong>Dados Foerncedidos</strong>: ", FORNECIDOS, "</br>",
+                               "<strong>Dados Obtidos</strong>: ", OBTIDOS, "</br>",
+                               "<strong>Coordenadas (Lat e Lon)</strong>: ", LAT, ", ", LON),
+         ID            = str_c(NR_ZONA, NR_LOCVOT) %>% as.factor())
+
+use_pal <- c('#1b9e77','#d95f02','#7570b3','#e7298a','#66a61e','#e6ab02','#a6761d','#666666')
+
+pal <- colorFactor(palette = use_pal, domain = merged_df$ID)
+
+map <- merged_df %>% 
+  filter(dist > 1000) %>% 
+  leaflet() %>% 
+  addTiles() %>% 
+  addCircleMarkers(~longitude,
+                   ~latitude,
+                   color = ~pal(ID),
+                   popup = ~POP_UP,
+                   fillOpacity = 1) %>% 
+  addPolylines(~longitude,
+               ~latitude,
+               ~as.factor(X1))
+
+map
+```
 
 ## 3. Conclusões
 
