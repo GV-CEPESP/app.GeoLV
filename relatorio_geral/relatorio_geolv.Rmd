@@ -369,20 +369,27 @@ map <- merged_df %>%
                    ~latitude,
                    color = ~pal(ID),
                    popup = ~POP_UP,
-                   fillOpacity = 1) %>% 
-  addPolylines(~longitude,
-               ~latitude,
-               ~as.factor(X1))
+                   fillOpacity = 1)
 
 map
 ```
 
-## 3. Conclusões
+## 4. Conclusões
 
-- Observações no centro de cidades tendem a ser mais confiáveis.
+### 4.1. Análise Descritiva dos Resultados
 
-- Parece que o maior problema com os endereços de seções localizadas na periferias ou em áreas rurais é a falta de detalhes: número da rua ou apenas a quilometragem.
+- 
 
-    + Uma possível solução é fornecer o nome do local de votação ao invés do endereço.
+### 4.2. Verificação Manual
 
-- Tomar cuidado com números de ruas grandes. Se a marcação de mil for um `.`, aparentemente as APIs têm problemas em interpretar o resultado. Por exemplo, ao fornecer Rua Fictícia 123.000 (cento e vinte e três mil), a API entende como 123 (cento e vinte e três).
+O teste manual das coordenadas obtidas pelo GeoLV levou a alguns apontamentos:
+
+- Observações no centro de cidades tendem a ser mais confiáveis, enquanto locais de votação nas periferias ou em zonas rurais tendem a ser menos confiáveis e imprecisos. Isso é esperado, mas vale tomar cuidado ainda assim.
+
+- Em endereços rurais ou mais distantes do centro, um dos maiores problemas está nos enfereços dos locais do votação. A falta do __número da rua__ ou um __endereço de rodovia__ (BR 111, km 20, por exemplo) tendem a ser mais imprecisos.
+
+    + Solução Proposta: para endereços com uma dessas características seria interessante tentar geolocalizá-los novamente com o __nome__ do local de votação. Em tentativas manuais, o resultado pareceu mais promissos.
+    
+- Endereços com número muito grande podem conter marcores (`.`, `,`) que confundem a API dos provedores. Por exemplo, ao fornecer Rua Fictícia 123.000 (cento e vinte e três mil), a API entende como 123 (cento e vinte e três).
+
+### 4.3. Validação Externa
