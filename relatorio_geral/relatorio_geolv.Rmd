@@ -124,6 +124,43 @@ data %>%
        title = "Zonas Eleitorais Econtradas por Município")
 ```
 
+Se selecionarmos as localidades que tem "Rural" no nome de local de votação, podemos ver que tanto elas tem uma maior concentração de não encontrados, como elas correspondem a ~2/3 dos dados missing. 
+
+Ao rodarmos de novo, apenas com o nome das localidades, encontramos 32/113 resultados.
+
+```{r}
+data %>% 
+  mutate(rural=ifelse(str_detect(NM_LOCVOT,'RURAL'),"Localidade nomeada como rural","Localidade não nomeada commo rural"))%>% 
+  mutate(encontrado=ifelse(is.na(longitude),1,0))%>% 
+  group_by(rural) %>% 
+  summarise(mis   = sum(is.na(longitude)),
+            achou = sum(!is.na(longitude))) %>% 
+  gather(mis:achou, key = "resultado", value = "n") %>% 
+  ggplot(mapping = aes(x = rural, y = n, fill = resultado)) +
+  geom_bar(stat = "identity", position = "fill") +
+  coord_flip() +
+  theme_minimal() +
+  theme(legend.position = "bottom") +
+  scale_fill_discrete(labels = c("Encontrou", "Missing")) +
+  labs(x = "Município",
+       y = "Proporção",
+       fill = "Resultado",
+       title = "Zonas Eleitorais Econtradas por Município - por zona rural")
+
+```
+
+```{r}
+data %>% 
+  mutate(Rural=ifelse(str_detect(NM_LOCVOT,'RURAL'),1,0))%>% 
+  mutate(Nao_rural=ifelse(str_detect(NM_LOCVOT,'RURAL'),0,1))%>% 
+  mutate(Status=ifelse(is.na(longitude),"Missing","Encontrou"))%>% 
+  group_by(Status) %>%
+  summarise(Rural   = sum(Rural==1),
+            Nao_rural = sum(Nao_rural==1))
+```
+
+
+
 ```{r, fig.height=5.0, fig.width=8.0}
 data %>% 
   ggplot(mapping = aes(x = NM_LOCALIDADE, y = dispersion)) +
@@ -132,7 +169,7 @@ data %>%
   theme_minimal() +
   labs(x = "Município",
        y = "Dispersão",
-       title = "Diserpsão por Município")
+       title = "Dispersão por Município")
 ```
 
 Nessa primeira imagem, temos os boxplots para a dispersão em cada cidade da região metropolitana de Curitiba. Observamos a presença de apenas duas observações com valor de dispersão acima do padrão. Uma na cidade de Pinhais e outra na cidade de São José dos Pinhais. De resto, apenas chama atenção a cidade de Rio Grande do Sul, onde a distribuição da variável foi mais dispersa do que nas outras cidades.

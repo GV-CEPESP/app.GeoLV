@@ -2,7 +2,7 @@ rm(list = ls())
 
 library(tidyverse)
 
-data <- read_csv("banco.csv")
+data <- read_csv("banco_rjcba.csv")
 
 glimpse(data)
 
@@ -27,7 +27,7 @@ data <- data %>%
                                  "<strong>Nº de Clusters:</strong> " ,clusters_count, "<br/>",
                                  "<strong>Nº de Provedores:</strong>", providers_count, "<br/>",
                                  "<strong>Provedor:</strong> ", provider),
-         popup           = str_c(Dados_Originais, "<br/>",
+         POP_UP           = str_c(Dados_Originais, "<br/>",
                                  Dados_Obtidos, "<br/>",
                                  Qualidade, "<br/>"),
          color           = case_when(provider == "arcgis_online" ~ "green",
@@ -35,5 +35,5 @@ data <- data %>%
                                      provider == "here_geocoder" ~ "red"))
 
 
-write_rds(data, "banco.rds")
-write.csv(casos, "casos.csv")
+write_rds(data, "banco_rjcba.rds")
+write.csv(casos, "casos_rjcba.csv")

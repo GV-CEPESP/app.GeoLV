@@ -2,7 +2,7 @@ library(magrittr)
 library(shiny)
 library(leaflet)
 
-data <- readr::read_rds("amostra.rds") %>% 
+data <- readr::read_rds("banco_rjcba.rds") %>% 
   dplyr::arrange(X1)
 
 # Define UI for application that draws a histogram
