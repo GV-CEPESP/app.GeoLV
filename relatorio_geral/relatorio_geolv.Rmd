@@ -1,9 +1,7 @@
 ---
 title: "Relatório GEOLV"
 author: "CEPESPData"
-output:
-  html_document:
-    df_print: paged
+runtime: shiny
 ---
 
 ```{r setup, include=FALSE, echo = FALSE}
@@ -24,8 +22,8 @@ library(tidyverse)
 library(knitr)
 library(ggthemes)
 library(leaflet)
-data <- read_csv("../banco.csv")
-amostra <- read_rds("../amostra.rds")
+data <- read_csv("banco.csv")
+amostra <- read_rds("amostra.rds")
 manual <- read_csv("https://docs.google.com/spreadsheets/d/1C1v0u6oXcPsLlbTLW_3ebL4qwheqL-12vLAZQl_nmXM/export?format=csv&id=1C1v0u6oXcPsLlbTLW_3ebL4qwheqL-12vLAZQl_nmXM&gid=1320424581")
 ```
 
@@ -126,6 +124,43 @@ data %>%
        title = "Zonas Eleitorais Econtradas por Município")
 ```
 
+Se selecionarmos as localidades que tem "Rural" no nome de local de votação, podemos ver que tanto elas tem uma maior concentração de não encontrados, como elas correspondem a ~2/3 dos dados missing. 
+
+Ao rodarmos de novo, apenas com o nome das localidades, encontramos 32/113 resultados.
+
+```{r}
+data %>% 
+  mutate(rural=ifelse(str_detect(NM_LOCVOT,'RURAL'),"Localidade nomeada como rural","Localidade não nomeada commo rural"))%>% 
+  mutate(encontrado=ifelse(is.na(longitude),1,0))%>% 
+  group_by(rural) %>% 
+  summarise(mis   = sum(is.na(longitude)),
+            achou = sum(!is.na(longitude))) %>% 
+  gather(mis:achou, key = "resultado", value = "n") %>% 
+  ggplot(mapping = aes(x = rural, y = n, fill = resultado)) +
+  geom_bar(stat = "identity", position = "fill") +
+  coord_flip() +
+  theme_minimal() +
+  theme(legend.position = "bottom") +
+  scale_fill_discrete(labels = c("Encontrou", "Missing")) +
+  labs(x = "Município",
+       y = "Proporção",
+       fill = "Resultado",
+       title = "Zonas Eleitorais Econtradas por Município - por zona rural")
+
+```
+
+```{r}
+data %>% 
+  mutate(Rural=ifelse(str_detect(NM_LOCVOT,'RURAL'),1,0))%>% 
+  mutate(Nao_rural=ifelse(str_detect(NM_LOCVOT,'RURAL'),0,1))%>% 
+  mutate(Status=ifelse(is.na(longitude),"Missing","Encontrou"))%>% 
+  group_by(Status) %>%
+  summarise(Rural   = sum(Rural==1),
+            Nao_rural = sum(Nao_rural==1))
+```
+
+
+
 ```{r, fig.height=5.0, fig.width=8.0}
 data %>% 
   ggplot(mapping = aes(x = NM_LOCALIDADE, y = dispersion)) +
@@ -134,7 +169,7 @@ data %>%
   theme_minimal() +
   labs(x = "Município",
        y = "Dispersão",
-       title = "Diserpsão por Município")
+       title = "Dispersão por Município")
 ```
 
 Nessa primeira imagem, temos os boxplots para a dispersão em cada cidade da região metropolitana de Curitiba. Observamos a presença de apenas duas observações com valor de dispersão acima do padrão. Uma na cidade de Pinhais e outra na cidade de São José dos Pinhais. De resto, apenas chama atenção a cidade de Rio Grande do Sul, onde a distribuição da variável foi mais dispersa do que nas outras cidades.
@@ -195,9 +230,14 @@ data %>%
 
 ## 2. Zonas Verificadas Manualmente
 
+
+
 ```{r}
 amostra <- amostra %>% 
   left_join(manual)
+
+amostra <- amostra %>% 
+  mutate(TIPO_AMOSTRA = ifelse(dispersion > median(dispersion), "Dispersão Alta", "Dispersão Baixa"))
 
 amostra %>% 
   ggplot(mapping = aes(x = RESULTADO)) +
@@ -206,23 +246,8 @@ amostra %>%
   theme_minimal() +
   labs(y = "Quantidade",
        x = "Resultado",
-       title = "Resultado das Classificações Manuais")
-```
-
-```{r}
-amostra %>% 
-  ggplot(mapping = aes(x = RESULTADO, y = dispersion)) +
-  geom_boxplot() +
-  coord_flip() +
-  theme_minimal()
-```
-
-```{r}
-amostra %>% 
-  ggplot(mapping = aes(x = RESULTADO, y = clusters_count)) +
-  geom_boxplot() +
-  coord_flip() +
-  theme_minimal()
+       title = "Resultado das Classificações Manuais") +
+  facet_wrap(~TIPO_AMOSTRA)
 ```
 
 - Legenda:
@@ -239,6 +264,45 @@ amostra %>%
     
     + Endereço Errado: Endereço fornecido não condiz com o local de votação.
     
+    
+
+```{r}
+amostra %>% 
+  ggplot(mapping = aes(x = RESULTADO, y = dispersion)) +
+  geom_boxplot() +
+  coord_flip() +
+  theme_minimal() +
+  labs(x = "Resultado",
+       y = "Dispersion",
+       title = "Dipersion em função de Resultados") 
+```
+
+```{r}
+amostra %>% 
+  ggplot(mapping = aes(x = RESULTADO, y = clusters_count)) +
+  geom_boxplot() +
+  coord_flip() +
+  theme_minimal() +
+  labs(x = "Resultado",
+       y = "Quantidade de Clusters",
+       title = "Quantidade de Clusters em função de Resultado") +
+  facet_wrap(~TIPO_AMOSTRA)
+```
+
+```{r}
+amostra %>% 
+  ggplot(mapping = aes(x = RESULTADO, y = providers_count)) +
+  geom_boxplot() +
+  coord_flip() +
+  theme_minimal() +
+  labs(x = "Resultado",
+       y = "Quantidade de Provedores",
+       title = "Quantidade de Provedores em função de Resultado") +
+  facet_wrap(~TIPO_AMOSTRA)
+```
+
+
+    
 ## 3. Validação Externa
 
 Nesta seção, o objetivo foi averiguar os pontos obtidos em contraste com fontes externas. Dado que a prefeitura de Curitiba possui as zonas de votação geolocalizadas, foi possível averiguar a distâncias entre essas inforçaões da prefeitura e os fornecidos pelo GeoLV nas 414 zonas eleitorais do município. 
@@ -250,9 +314,9 @@ library(foreign)
 library(geosphere)
 library(knitr)
 
-data_df <- read_csv("../banco.csv")
+data_df <- read_csv("banco.csv")
 
-prova_df <- read.dbf("../Ctba_LocaisVotacao.dbf") %>% 
+prova_df <- read.dbf("Ctba_LocaisVotacao.dbf") %>% 
   as.tibble()
 
 data_df_f <- data_df %>% 
@@ -318,7 +382,38 @@ merged_df %>%
   theme_minimal() +
   labs(x = "Distância (m)",
        y = "Quantidade",
-       title = "Distância entre locais geolocalizados")
+       title = "Distância entre Locais Geolocalizados")
+```
+
+```{r}
+for(i in seq_along(merged_df$X1)){
+  if(i %% 2 == 0){
+      merged_df$X1[[i]] <- merged_df$X1[[i - 1]]
+  }
+}
+
+merged_df <- merged_df %>% 
+  modify(as.character) %>% 
+  modify(str_replace_na)
+
+merged_df <- merged_df %>% 
+  mutate(LOCAL_VOTACAO = str_c(NM_LOCVOT),
+         FORNECIDOS    = str_c(NM_LOCALIDADE, " - ", DS_ENDERECO,". CEP: ", NR_CEP),
+         OBTIDOS       = str_c(locality, " - ", street_name, ", ", street_number, ". CEP: ", postal_code),
+         OBTIDOS       = str_replace_na(OBTIDOS),
+         latitude      = as.numeric(latitude),
+         longitude     = as.numeric(longitude),
+         dist          = as.numeric(dist),
+         LON           = longitude,
+         LAT           = latitude,
+         POP_UP        = str_c("<strong>Tipo de Obsevação</strong>: ", TIPO, "</br>",
+                               "<strong>Número da Observação</strong>: ", X1, "</br>",
+                               "<strong>Local de Votavação</strong>: ", LOCAL_VOTACAO, "</br>",
+                               "<strong>Dados Foerncedidos</strong>: ", FORNECIDOS, "</br>",
+                               "<strong>Dados Obtidos</strong>: ", OBTIDOS, "</br>",
+                               "<strong>Coordenadas (Lat e Lon)</strong>: ", LAT, ", ", LON),
+         ID            = str_c(NR_ZONA, NR_LOCVOT))
+
 ```
 
 Na tabela seguinte, é possível ver quais foram as observações com mais do que 1000 m de distância.
@@ -331,65 +426,43 @@ merged_df %>%
         caption = "Locais de Votação com Distância maior do que 1000 m")
 ```
 
-Agora, um mapa.
-
 ```{r}
+library(shiny)
 library(leaflet)
+sliderInput("dist", "Distância: ", min = 0, max = 9000, value = 1000)
 
-for(i in seq_along(merged_df$X1)){
-  if(i %% 2 == 0){
-      merged_df$X1[[i]] <- merged_df$X1[[i - 1]]
-  }
-}
-
-merged_df <- merged_df %>% 
-  mutate(LOCAL_VOTACAO = str_c(NM_LOCVOT),
-         FORNECIDOS    = str_c(NM_LOCALIDADE, " - ", DS_ENDERECO,". CEP: ", NR_CEP),
-         OBTIDOS       = str_c(locality, " - ", street_name, ", ", street_number, ". CEP: ", postal_code),
-         OBTIDOS       = str_replace_na(OBTIDOS),
-         LON           = longitude,
-         LAT           = latitude,
-         POP_UP        = str_c("<strong>Tipo de Obsevação</strong>: ", TIPO, "</br>",
-                               "<strong>Número da Observação</strong>: ", X1, "</br>",
-                               "<strong>Local de Votavação</strong>: ", LOCAL_VOTACAO, "</br>",
-                               "<strong>Dados Foerncedidos</strong>: ", FORNECIDOS, "</br>",
-                               "<strong>Dados Obtidos</strong>: ", OBTIDOS, "</br>",
-                               "<strong>Coordenadas (Lat e Lon)</strong>: ", LAT, ", ", LON),
-         ID            = str_c(NR_ZONA, NR_LOCVOT) %>% as.factor())
-
-use_pal <- c('#1b9e77','#d95f02','#7570b3','#e7298a','#66a61e','#e6ab02','#a6761d','#666666')
-
-pal <- colorFactor(palette = use_pal, domain = merged_df$ID)
-
-map <- merged_df %>% 
-  filter(dist > 1000) %>% 
-  leaflet() %>% 
-  addTiles() %>% 
-  addCircleMarkers(~longitude,
-                   ~latitude,
-                   color = ~pal(ID),
-                   popup = ~POP_UP,
-                   fillOpacity = 1)
-
-map
+renderLeaflet({
+  pal <- colorFactor(palette = "Paired", domain = as.factor(merged_df$ID[merged_df$dist > input$dist]))
+  merged_df %>% 
+    filter(dist > input$dist) %>% 
+    leaflet() %>% 
+    addTiles() %>% 
+    addCircleMarkers(~longitude,
+                     ~latitude,
+                     fillColor = ~pal(ID),
+                     color = "black",
+                     popup = ~POP_UP,
+                     fillOpacity = 1,
+                     opacity = 1)
+})
 ```
+
+Aparentemente, os problemas mais comuns estão nos endereços fornecidos pelo TSE. A falta de númeração da rua ou um endereço poluído parecem comprometer os resultados do GeoLV.
 
 ## 4. Conclusões
 
-### 4.1. Análise Descritiva dos Resultados
+De modo geral, o GeoLV parece ter se saído muito bem. A maior parte dos resultados nos centros das cidades obtiveram coordenadas próximas aos locais de votação. Ainda assim, chama atenção a falta de qualidade dos pontos localizados na periferia ou em zonas rurais. Algumas alternativas podem ser adodatas principalmente no pré-processamento dos dados a fim de garantir um melhor resultado.
 
-- 
+1. Limpeza dos endereço.
 
-### 4.2. Verificação Manual
-
-O teste manual das coordenadas obtidas pelo GeoLV levou a alguns apontamentos:
-
-- Observações no centro de cidades tendem a ser mais confiáveis, enquanto locais de votação nas periferias ou em zonas rurais tendem a ser menos confiáveis e imprecisos. Isso é esperado, mas vale tomar cuidado ainda assim.
-
-- Em endereços rurais ou mais distantes do centro, um dos maiores problemas está nos enfereços dos locais do votação. A falta do __número da rua__ ou um __endereço de rodovia__ (BR 111, km 20, por exemplo) tendem a ser mais imprecisos.
-
-    + Solução Proposta: para endereços com uma dessas características seria interessante tentar geolocalizá-los novamente com o __nome__ do local de votação. Em tentativas manuais, o resultado pareceu mais promissos.
+    + Alguns endeços contêm informações não relevantes para a geolocalização que poderiam ser excluídas já que elas talvez estejam apenas atrabalhando o trabalho da nossa API.
     
-- Endereços com número muito grande podem conter marcores (`.`, `,`) que confundem a API dos provedores. Por exemplo, ao fornecer Rua Fictícia 123.000 (cento e vinte e três mil), a API entende como 123 (cento e vinte e três).
+2. Cuidados com o número da rua.
 
-### 4.3. Validação Externa
+    + Não foram em todos os casos, mas durante a classificação manual um número alto como 123.000 foi compreendido como 123.
+    
+3. Dupla geolocalização.
+
+    + Talvez não para todos os casos, mas seria interessante pensar em geolocalizar os locais de votação tendo em vista apenas os nomes dos locais, o município e a unidade federativa. Isso provavelmente seria uma solução para os casos em que o TSE fornece o endereço errado do local de votação.
+    
+    + Casos em que o endereço se encontram em rodovias também parecem ser pouco confiáveis e esse duplo processamento dos dados poderia ser uma alternativa interessante.
